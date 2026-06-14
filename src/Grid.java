@@ -4,90 +4,125 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Random;
 
-public class Grid {
+class Grid {
     private Game game;
-    private JButton[][] buttons;
+    private CellButton[][] buttons;
 
+    private JFrame frame;
+    private JPanel boardPanel;
+    private JPanel statisticsPanel;
+    private JLabel scoreLabel;
+    private JButton restartButton;
+    private boolean limitedMoves;
 
-    public Grid(Game game, Statistics statistics) {
+    private int size;
+
+    public Grid(Game game, Statistics statistics, int size, boolean limitedMoves) {
         this.game = game;
-        this.buttons = new JButton[7][7];
+        this.size = size;
+        this.buttons = new CellButton[size][size];
+        this.limitedMoves = limitedMoves;
 
+        restartButton = new JButton("Restart");
+        restartButton.addActionListener(e -> restartGame());
+
+        createFrame();
+        createTopPanel();
+        createBoard();
+        createStatisticsPanel(statistics);
+
+        frame.setVisible(true);
+    }
+
+        private void createFrame() {
+            frame = new JFrame("PathMaster3000");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(500, 500);
+            frame.setLayout(new BorderLayout());
+        }
+
+        private void createTopPanel() {
+            scoreLabel = new JLabel("Score: 0.0", JLabel.CENTER);
+            frame.add(scoreLabel, BorderLayout.NORTH);
+        }
+
+    private void createBoard() {
+
+        boardPanel = new JPanel(new GridLayout(size, size));
         Random random = new Random();
-        final int n = 7;
-        final JFrame frame = new JFrame("PathMaster3000");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(500, 500);
-        frame.setLayout(new BorderLayout());
 
-        JPanel panel = new JPanel(new GridLayout(n, n));
-        JLabel labels = new JLabel("Score: 0.0", JLabel.CENTER);
-        frame.add(labels, BorderLayout.NORTH);
+        for (int row = 0; row < size; row++) {
+            for (int col = 0; col < size; col++) {
 
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                JButton button = new JButton();
-                final int randomNum;
+                Cell cell = createCell(row, col, random);
+                CellButton button = new CellButton(cell, row, col);
 
-                if (i == 0 && j == 0) {
-                    button = new JButton("Start");
-                    button.setBackground(Color.lightGray);
-                } else if (i == n - 1 && j == n - 1) {
-                    button = new JButton("End");
-                    button.setBackground(Color.lightGray);
-                } else {
-                    randomNum = random.nextInt(10);
-                    button.setText(String.valueOf(randomNum));
-                    button.setBackground(Color.magenta);
-                }
-
-                final int row = i;
-                final int col = j;
-                final JButton finalButton = button;
-
-                button.addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-
-                        String buttonText = finalButton.getText();
-
-                        if (buttonText.equals("Start")) {
-                            return;
-                        }else if (buttonText.equals("End")) {
-                            JOptionPane.showMessageDialog(frame, "You have finished the game!");
-                            System.exit(0);
-                            return;
-                        }
-
-                            int fieldValue = Integer.parseInt(finalButton.getText());
-
-                            labels.setText("Score: " + game.getSumValues());
-
-                            if (game.validMove(row, col, fieldValue)) {
-                                game.currentRow = row;
-                                game.currentCol = col;
-                                game.visited.add(game.currentRow + " " + game.currentCol);
-                                finalButton.setBackground(Color.YELLOW);
-
-                                labels.setText("Score: " + game.getSumValues());
-                                if (game.currentRow == n - 1 && game.currentCol == n - 1) {
-                                    JOptionPane.showMessageDialog(frame, "You have finished the game!");
-
-                                    System.exit(0);
-                                }
-                            }
-                        }
-                });
-                panel.add(button);
+                buttons[row][col] = button;
+                addButtonListener(button);
+                boardPanel.add(button);
             }
         }
-        JPanel statisticsPanel = new JPanel(new GridLayout(3, 1));
+        frame.add(boardPanel, BorderLayout.CENTER);
+    }
+
+    private Cell createCell(int row, int col, Random random) {
+
+        if (row == 0 && col == 0) {
+            return new StartCell();
+        }
+        if (row == size - 1 && col == size - 1) {
+            return new EndCell();
+        }
+        int value = random.nextInt(10);
+
+        if (limitedMoves && random.nextInt(10) == 0){
+            return new BonusCell(value);
+        }
+        return  new NormalCell(value);
+    }
+
+    private void addButtonListener(CellButton button) {
+        button.addActionListener(e -> handleClick(button));
+    }
+
+    private void handleClick(CellButton button) {
+
+        Cell cell = button.getCell();
+
+        boolean moved = game.validMove(
+                button.getRow(),
+                button.getCol(),
+                cell
+        );
+
+        if (moved) {
+            button.setBackground(Color.CYAN);
+            scoreLabel.setText("Score: " + game.getAverageScore());
+        }
+    }
+
+    private void createStatisticsPanel(Statistics statistics){
+        if (limitedMoves) {
+            statisticsPanel = new JPanel(new GridLayout(5, 1));
+        } else {
+            statisticsPanel = new JPanel(new GridLayout(4, 1));
+        }
         statisticsPanel.add(statistics.getMovesLabel());
         statisticsPanel.add(statistics.getSumSelectedFields());
         statisticsPanel.add(statistics.getTimeLabel());
+        statisticsPanel.add(statistics.getRemainingMoves());
 
+        statisticsPanel.add(restartButton);
         frame.add(statisticsPanel, BorderLayout.SOUTH);
-
-        frame.add(panel, BorderLayout.CENTER);
-        frame.setVisible(true);
+ }
+    private void restartGame() {
+        try {
+            frame.dispose();
+            Main.main(null);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(frame,
+                    "Error restarting game!");
+            e.printStackTrace();
+        }
     }
 }

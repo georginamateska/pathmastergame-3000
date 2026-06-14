@@ -1,4 +1,4 @@
-public class Score {
+class Score {
     private int sumValues;
     private int pathTaken;
 
